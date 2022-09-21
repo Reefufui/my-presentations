@@ -145,16 +145,14 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{Кэширование}
+    \frametitle{Расположение данных BVH (Data Layout)}
     \begin{block}{Cache locality CPU \& GPU}
-        Когда вы обращаетесь к памяти, ее фрагменты кэшируются на разных уровнях.
         Локальность кеша относится к вероятности того,
         что последовательные операции будут находиться в кеше и,
         следовательно, будут выполняться быстрее.
     \end{block}
     \begin{block}{GPU Texture memory}
-        Текстурная память GPU относится к аппаратному блоку, который мапается на глобальную память GPU.
-        Этот аппаратный блок предоставляет свой механизм кэширования.
+        Этот аппаратный блок предоставляет свой механизм кэширования глобальной памяти GPU.
         \begin{itemize}
             \item
                 максимизации 2D пространственной локальности
@@ -162,11 +160,7 @@
                 аппаратная обработка адресов, выходящих за границы
         \end{itemize}
     \end{block}
-\end{frame}
-
-\begin{frame}
-    \frametitle{Data layout}
-    \begin{block}{Идея}
+    \begin{block}{Data Layout}
         Изменения порядка узлов и их внутреннего представления может улучшить \textbf{cache locality}
         и тем самым уменьшить \textbf{traversal cost}.
     \end{block}
@@ -177,52 +171,70 @@
     Существует несколько подходов, которые пытаются \textbf{минимизировать использование памяти}, используя один или несколько из следующих методов:
     \begin{itemize}
         \item
-            Сокращение информации, которая хранится для каждого BV
+            \textbf{Сокращение информации}, которая хранится для каждого BV
         \item
-            Снижение точности данных, которые хранятся в BV
+            \textbf{Снижение точности} данных, которые хранятся в BV
         \item
-            Удаление дочерних и примитивных указателей неявным индексированием
+            Удаление дочерних и примитивных указателей \textbf{неявным индексированием}
         \item
-            Повышение коэффициента ветвления (числа потомков на узел), чтобы уменьшить общее количество узлов в BVH
+            Повышение коэффициента ветвления (\textbf{числа потомков на узел}), чтобы уменьшить общее количество узлов в BVH
         \item
-            Сжатие данных иерархии
+            \textbf{Сжатие} данных иерархии
     \end{itemize}
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Идеи сокращения информации BVH}
+
+    \begin{columns}
+        \column{.8\textwidth}
+        \begin{block}{Enclosing Property of BVH}
+            Ограничевающее свойство BVH обеспечивает,
+            что луч всегда:
+            \begin{itemize}
+                \item
+                    пересекает сначала (или одновременно) узел предок, прежде чем он
+                    сможет пересечь дочерние узлы
+                \item
+                    всегда будет покидать дочерние узлы
+                    раньше или одновременно узла-предка
+            \end{itemize}
+        \end{block}
+
+        \column{.2\textwidth}
+        \begin{figure}
+            \includegraphics[keepaspectratio, width=\textwidth]{res/enclosing.png}
+        \end{figure}
+    \end{columns}
+
+    \begin{block}{Еще одно полезное свойство, касающееся эффективности}
+        BV дочерних элементов узла имеют общие ограничивающие плоскости со своим родителем.
+    \end{block}
 
 \end{frame}
 
 \begin{frame}
     \frametitle{Single Slab Hierarchy}
-    \framesubtitle{Ray Tracing with the Single Slab Hierarchy}
-    \textbf{The single slab hierarchy (SSH)} - это способ разделения BV надвое одной пластиной,
-    в результате чего получается двоичное дерево.
-
-    Представляем BV одной огранивающей пластиной, вместо хранения min/max для каждой из осей.
-
-\end{frame}
-
-\begin{frame}
-    \frametitle{Enclosing Property of BVH}
-    \begin{block}{}
-        Ограничевающее свойство BVH обеспечивает,
-        что луч всегда:
-        \begin{itemize}
-            \item 
-                пересекает сначала (или одновременно) узел предок, прежде чем он
-                сможет пересечь дочерние узлы
-            \item 
-                всегда будет покидать дочерние узлы
-                раньше или одновременно узла-предка
-        \end{itemize}
+    \begin{block}{The single slab hierarchy (SSH)}
+        \textbf{Иерархия одиночных пластин} - полное k-арное дерево BVH, которое хранится в массиве
+        и индексируется как heap.
+        Каждый узел либо листовой, либо имеет k дочерних.
+        Это способ разделения BV надвое одной пластиной,
+        в результате чего получается k-ичное дерево.
     \end{block}
 
-    \begin{figure}
-        \includegraphics[keepaspectratio, height=0.5\textheight]{res/enclosing.png}
-    \end{figure}
+    Принцип, используемый для этого компактного представления BVH:
+    \begin{itemize}
+        \item
+            \textbf{Сокращение информации}, которая хранится для каждого BV
+    \end{itemize}
 
 \end{frame}
 
 \begin{frame}
     \frametitle{Bounding Plane Adjustment}
+    \framesubtitle{Single Slab Hierarchy}
     Чтобы не оставлять пустот в BVH, для каждого дочернего узла мы подбираем
     свою ось вдоль которой разместить splitting plane (single slab).
 
@@ -233,18 +245,9 @@
     \end{figure}
 \end{frame}
 
-\begin{frame}
-    \frametitle{Лишние вычисления}
-    \begin{block}{Еще одно полезное свойство, касающееся эффективности}
-        BV дочерних элементов узла имеют общие ограничивающие плоскости со своим родителем.
-        По крайней мере 6/12 плоскостей, определяющие два дочерних узла, будут совпадать
-        с границами родительского узла.
-    \end{block}
-\end{frame}
-
 \begin{frame}[fragile]
-    \frametitle{Single Slab Hierarchy}
-    \framesubtitle{Структура Узла}
+    \frametitle{Структура Узла}
+    \framesubtitle{Single Slab Hierarchy}
 
     \begin{semiverbatim}
         #pragma align(8)
@@ -265,24 +268,11 @@
 
 \end{frame}
 
-\begin{frame}
-    \frametitle{Single Slab Hierarchy}
-    \framesubtitle{SAH}
-    \begin{block}{SAH (surface area heuristic)}
-        S(B) - surface area of node B
-
-        \(
-        P(\overrightarrow{r}\cap B^i \lvert \overrightarrow{r} \cap B^0)_{SAH} = \frac{S(B^i)}{S(B^0)}
-        \)
-    \end{block}
-
-\end{frame}
-
 \begin{frame}[fragile]
-    \frametitle{Single Slab Hierarchy}
-    \framesubtitle{Construction}
+    \frametitle{Построение}
+    \framesubtitle{Single Slab Hierarchy}
 
-    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{red}]
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
 void createSSH(TriangleList tris, AABB parent,
                 SSHNode& node) {
     AABB bounds(tris); // bounding box
@@ -303,9 +293,9 @@ void createSSH(TriangleList tris, AABB parent,
 \end{frame}
 
 \begin{frame}[fragile]
-    \frametitle{Single Slab Hierarchy}
-    \framesubtitle{Construction}
-    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{red}]
+    \frametitle{Построение (продолжение)}
+    \framesubtitle{Single Slab Hierarchy}
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
     ...
     node.boundingPlane = boudns.bestSide;
 
@@ -324,9 +314,9 @@ void createSSH(TriangleList tris, AABB parent,
 \end{frame}
 
 \begin{frame}[fragile]
-    \frametitle{Single Slab Hierarchy}
-    \framesubtitle{Traversal}
-    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{red}]
+    \frametitle{Обход SSH}
+    \framesubtitle{Single Slab Hierarchy}
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
 bool intersectSSH(Ray& ray, mask reverse[3],
         SSHNode* node, float& t_hit,
         float& t_near, float& t_far) {
@@ -335,44 +325,52 @@ bool intersectSSH(Ray& ray, mask reverse[3],
     int axis = node->getSlabAxis();
     float t = (node->plane - ray.origin[axis])
         / ray.dir[axis];
-
     // 2. Compare it to the active ray segment
     if (node->geometryIsLeft()) {
-        t_near = (reverse[axis] | (t <= t_near)) ? t_near : t;
-        t_far  = (reverse[axis] & (t < t_far)) ? t : t_far;
+        t_near = (reverse[axis] | (t <= t_near))
+            ? t_near : t;
+        t_far  = (reverse[axis] & (t < t_far))
+            ? t : t_far;
+    ...
+
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Обход SSH (продолжение)}
+    \framesubtitle{Single Slab Hierarchy}
+
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
+    ...
     } else {
-        t_near = (reverse[axis] & (t > t_near)) ? t_near : t;
-        t_far  = (reverse[axis] | (t >= t_far)) ? t : t_far;
+        t_near = (reverse[axis] & (t > t_near))
+            ? t_near : t;
+        t_far  = (reverse[axis] | (t >= t_far))
+            ? t : t_far;
     }
 
     if ((t_near > t_far) || (t_near > t_hit)) {
         return false;
-    };
-
-    if (node->isLeaf()) {
-        return intersectGeometry;
-    } else {
-        /*
-           traverse children here
-           */
     }
+
+    if (node->isLeaf()) { ... } else { ... };
 }
     \end{lstlisting}
 \end{frame}
 
 \begin{frame}
-    \frametitle{Single Slab Hierarchy}
-    \framesubtitle{Extension to dynamic scenes}
+    \frametitle{Extension to dynamic scenes}
+    \framesubtitle{Single Slab Hierarchy}
     \begin{block}{Skinned meshes}
-    Можно применить простой bottom-up подход,
-    используя тривиальные min/max операции для адаптации границ узлов.
-    Структура иерархии остается неизменной.
+        Можно применить простой bottom-up подход,
+        используя тривиальные min/max операции для адаптации границ узлов.
+        Структура иерархии остается неизменной.
 
-    Этого достаточно для большинства когерентных анимаций.
+        Этого достаточно для большинства когерентных анимаций.
     \end{block}
 
     \begin{block}{Arbitrary movements}
-    Можно параллельно перестраивать SSH. Как только построение будет завершено - сделать замену.
+        Можно параллельно перестраивать SSH. Как только построение будет завершено - сделать замену.
     \end{block}
 
 \end{frame}
@@ -380,7 +378,6 @@ bool intersectSSH(Ray& ray, mask reverse[3],
 \begin{frame}[t]
     \frametitle{Плюсы и минусы}
     \framesubtitle{Single Slab Hierarchy}
-
     \textbf{Достоинства}:
     \begin{itemize}
         \item
@@ -395,10 +392,7 @@ bool intersectSSH(Ray& ray, mask reverse[3],
             Не изменена структура самого дерева - изменено только представление узлов
         \item
             Сравним по скорости с обычным AABB BVH
-        \item
-            Преобразует уже построенный AABB BVH
     \end{itemize}
-
     \textbf{Недостатки}:
     \begin{itemize}
         \item
@@ -408,7 +402,6 @@ bool intersectSSH(Ray& ray, mask reverse[3],
         \item
             В среднем на один треугольник на луч пересекается больше
     \end{itemize}
-
 \end{frame}
 
 \begin{frame}[t]
@@ -477,7 +470,7 @@ bool intersectSSH(Ray& ray, mask reverse[3],
             \includegraphics[keepaspectratio, width=\textwidth]{res/mem_layout_mvh.png}
         \end{figure}
         \begin{figure}
-            \includegraphics[keepaspectratio, width=\textwidth]{res/tree_mvh.png}
+            \includegraphics[keepaspectratio, width=0.9\textwidth]{res/tree_mvh.png}
         \end{figure}
     \end{columns}
 
@@ -504,7 +497,6 @@ bool intersectSSH(Ray& ray, mask reverse[3],
             \includegraphics[keepaspectratio, width=\textwidth]{res/splitting_mvh.png}
         \end{figure}
     \end{columns}
-
     \begin{block}{}
         Каждый раз мы используем фиксированный reduction factor $\zeta$
         Лучшие результаты с $\zeta \in [ 0.35, 0.30]$
@@ -532,19 +524,172 @@ bool intersectSSH(Ray& ray, mask reverse[3],
             Пусть всего $N$ узлов. Тогда аллоцируем массив длины $2N$ из \textit{int32}
         \item
             MVH строится с использованием object median split, где
-            процесс разделения использует предварительно вычисленные количества примитивов для
+            \textbf{процесс разделения} использует предварительно вычисленные количества примитивов для
             разделения списка объектов на две части
     \end{enumerate}
-    
 \end{frame}
 
 \begin{frame}
-    \frametitle{Построение MVH. Алгоритм (продолжение)}
+    \frametitle{Процесс разделения BV}
     \framesubtitle{Minimal Bounding Volume Hierarchy}
     \begin{enumerate}
-        \item 
-            aa
+        \item
+            Отсекаем от рамки родителя способами 01, 10, 11 и сравниваем с реальным BV для текущего списка примитивов
+        \item
+            Если один из способов нам подходит - записываем в массив эти 2 бита.
+        \item
+            Как только дошли до листа - заносим примитивы в массив примитивов под соответствующими индексами
     \end{enumerate}
+    \begin{block}{}
+        На каждом этапе разделения выбирается ось, вдоль которой располагаются самые длинные грани приближенного AABB
+    \end{block}
+    \begin{block}{Глобальные параметры}
+        \begin{itemize}
+            \item
+                Root's BB
+            \item
+                Reduction factor $\zeta$
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Обход MVH}
+    \framesubtitle{Minimal Bounding Volume Hierarchy}
+
+    Алгоритм обхода такой же, как и для Single Slab, однако строить splitting plane приходится на самом этапе обхода.
+
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
+float minTab[4] = { 0.0f, zeta, 0.0f, zeta };
+float maxTab[4] = { 0.0f, 0.0f, zeta, zeta };
+bool intersect(Ray& r, float& tHit, int* mvhArray,
+        int node, AABB& parent,
+        float tNear, float tFar) {
+    // reconstruct AABB
+    vec3 size = parent.max - parent.min;
+    char axis = GetAxisOfMaximumExtent(size);
+    char bitID = GetNodeCut(node);
+    parent.min[axis] += size[axis]*minTab[bitID];
+    parent.max[axis] -= size[axis]*maxTab[bitID];
+
+    ...
+    \end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Обход MVH (продолжение)}
+    \framesubtitle{Minimal Bounding Volume Hierarchy}
+
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
+    ...
+    // intersection
+    float tmin, tmax;
+    parent.intersect(r, tmin, tmax, axis);
+    float tNear = max(min(tmin, tmax), tNear);
+    float tFar = min(max(tmin, tmax), tFar);
+    return ((tNear <= tFar) && (tNear <= tHit));
+}
+
+char GetNodeCut(int node, int* mvhArray) {
+    int iIndex = node >> 4;
+    int iShift = (node & 15) << 1;
+    return ((mvhArray[iIndex] >> iShift) & 0x3);
+}
+    \end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Двухуровневая MVH. TLAS и BLAS}
+    \framesubtitle{Minimal Bounding Volume Hierarchy}
+    \begin{block}{Идея}
+        \begin{itemize}
+            \item
+                Половина всех затрат памяти приходится на последний уровень дерева BVH (вдвое больше узлов)
+            \item
+                Большинство лучей пересакают верхние уровни дерева - надо сделать их качественными
+        \end{itemize}
+    \end{block}
+    \begin{block}{Top level acceleration structure (TLAS)}
+        Верхний уровень в несжатом BVH формате, оптимизированный с помощью затратного по времени SAH
+    \end{block}
+    \begin{block}{Bottom level acceleration structure (BLAS)}
+        Нижний уровень состоит из разных MVH, на которые ссылается верхний уровень как на листья.
+    \end{block}
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Результаты}
+    \framesubtitle{Minimal Bounding Volume Hierarchy}
+    \resizebox{\textwidth}{!}{\begin{tabular}{l||l l||l l||l l}
+            \hline
+            Scene & Tris & BVH & MVH & Ratio BVH:MVH & 2-level MVH & Ratio BVH:2-level MVH \\
+            \hline
+            Bones & 4,204 & 70.75KB & 0.51KB & 100:1 & 26.59KB & 3:1 \\
+            Sponza & 67,462 & 797.94KB & 8.23KB & 97:1 & 41.02KB & 20:1 \\
+            Office & 385,376 & 1,636.50KB & 47.04KB & 35:1 & 72.71KB & 23:1 \\
+            Fairy & 174,117 & 1,957KB & 21.25KB & 92:1 & 50.41KB & 39:1 \\
+            Cars & 549,662 & 6,051.63KB & 67.09KB & 90:1 & 170.20KB & 36:1 \\
+            Dragon & 871.306 & 10.44MB & 0.11MB & 101:1 & 142.08KB & 75:1 \\
+            Buddha & 1,087,716 & 13.39MB & 0.13MB & 101:1 & 168.50KB & 81:1 \\
+            \hline
+    \end{tabular} }
+    \resizebox{\textwidth}{!}{\begin{tabular}{l||l l l||l l l l l||l l l l l}
+            \hline
+                  & ts & tt & rt & ts & tt & rt & $\zeta$ & Loss & ts & tt & rt & $\zeta$ & Loss \\
+                  \hline
+            Bones & 2.5 & 1.3 & 0.10s & 67.7 & 84.3 & 2.70s & 0.3 & 1:27 & 3.2 & 2.7 & 0.16s & 0.3 & 1:1.6 \\
+            Sponza & 39.2 & 16.7 & 0.98s & 3,828 & 415 & 160.7s & 0.3 & 1:164 & 159 & 196.6 & 7.35s & 0.3 & 1:7.5 \\
+            Office & 26.1 & 63.3 & 1.42s & 1,992 & 262 & 328.2s & 0.4 & 1:231 & 110 & 153.6 & 5.11s & 0.4 & 1:3.6 \\
+            Fairy & 21.0 & 10.5 & 0.56s & 12,690 & 3,740 & 519.0s & 0.35 & 1:926 & 72.4 & 83.9 & 3.46s & 0.35 & 1:6.1 \\
+            Cars & 44.5 & 15.4 & 1.06s & 4,461 & 1,943 & 221.0s & 0.4 & 1:208 & 148.9 & 186.4 & 7.07s & 0.4 & 1:6.5 \\
+            Dragon & 19.3 & 6.6 & 0.51s & 2,081 & 1,676 & 66.8s & 0.35 & 1:131 & 154.1 & 188.0 & 8.04s & 0.35 & 1:15.7 \\
+            Buddha & 2.5 & 0.76 & 0.11s & 311 & 262 & 10.37s & 0.35 & 1:94 & 23.3 & 28.4 & 1.27s & 0.35 & 1:11.5 \\
+            \hline
+            Bones & 19.1 & 219 & 0.02s & 316.4 & 369.9 & 0.06s & 0.3 & 1:3 & 24.6 & 256.6 & 0.02s & 0.3 & 1:1.09 \\
+            Sponza & 190.8 & 22 & 0.08s & 1,542 & 3,393 & 1.87s & 0.3 & 1:25 & 784.6 & 2,102 & 0.13s & 0.3 & 1:1.71 \\
+            Office & 179.2 & 2,961 & 0.10s & 25,002 & 7,895 & 3.26s & 0.4 & 1:33 & 702.5 & 6,464 & 0.17s & 0.4 & 1:1.74 \\
+            Fairy & 185.6 & 2,337 & 0.08s & 49,250 & 8,114 & 3.83s & 0.35 & 1:46 & 683.9 & 5,527 & 0.17s & 0.35 & 1:1.98 \\
+            Cars & 332.9 & 2,671 & 0.12s & 20,458 & 14,350 & 2.36s & 0.4 & 1:20 & 1,067 & 6,996 & 0.23s & 0.4 & 1:1.96 \\
+            Dragon & 391.0 & 4,399 & 0.15s & 11,244 & 19,142 & 1.55s & 0.35 & 1:11 & 1,777 & 15,468 & 0.40s & 0.35 & 1:2.71 \\
+            Buddha & 281.3 & 1,191 & 0.10s & 3,042 & 20,939 & 0.58S & 0.35 & 1:6 & 882.6 & 11,155 & 0.25s & 0.35 & 1:2.38 \\
+            \hline
+    \end{tabular} }
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Плюсы и минусы}
+    \framesubtitle{Minimal Bounding Volume Hierarchy}
+
+    \textbf{Достоинства}:
+    \begin{itemize}
+        \item
+            100:1, 30:1 compression ratio для MVH и двухуровневого решения соотв.
+        \item
+            Подходит для интерактивного рейтрейсинга
+        \item
+            Подходит для неимоверно больших сцен
+        \item
+            Подходит для интерактивного рейтрейсинга (двухуровневая реализация только если)
+        \item
+            Настраиваемый компромисс между объемом дерева и скоростью
+    \end{itemize}
+
+    \textbf{Недостатки}:
+    \begin{itemize}
+        \item
+            Немного дольше строить
+        \item
+            Сильно страдает от некогерентных лучей
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{title}
+    \framesubtitle{subtitle}
+
 \end{frame}
 
 \end{document}
