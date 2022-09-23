@@ -5,10 +5,10 @@
 
 \usetheme{Frankfurt}
 \usepackage[main=russian,english]{babel}
+\usepackage{algorithm,algorithmic}
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{listings}
-
 
 \begin{document}
 
@@ -70,7 +70,9 @@
             SSV (Swept Sphere Volume)
     \end{itemize}
     \begin{figure}
-        \includegraphics[keepaspectratio, width=\textwidth]{res/bvh_types.jpg}
+        \begin{center}
+        \includegraphics[keepaspectratio, scale=0.3]{res/bvh_types.jpg}
+    \end{center}
     \end{figure}
 \end{frame}
 
@@ -164,6 +166,90 @@
         Изменения порядка узлов и их внутреннего представления может улучшить \textbf{cache locality}
         и тем самым уменьшить \textbf{traversal cost}.
     \end{block}
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Treelets. Маленькие узлы-деревья}
+
+    \begin{block}{Идея}
+        Объеденить близкую друг к другу геометрию в \textbf{узлы-деревья} - \textit{treelets}, чтобы повысить
+        \textit{cache locality}, так как следующие когерентные лучи будут попадать в загруженные в texture memory трилеты
+    \end{block}
+    \begin{block}{}
+        Поскольку \textbf{время выполнения} и \textbf{требования к памяти} быстро растут вместе с размерами treelet'ов,
+        целесообразно использовать только \textit{маленькие древовидные структуры}
+    \end{block}
+    Перестановкой \textit{treelets} можно уменьшить общюю \textit{SAH cost} \textbf{Treelet BVH (TRBVH)} дерева
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Создание трилетов}
+    \framesubtitle{Treelets}
+    \begin{lstlisting}[language=C++,basicstyle=\ttfamily,keywordstyle=\color{blue}]
+    DQ = {root} // deferred queue
+    MQ = {} // merge queue
+    p = *threshold* // [0; 1]
+    while (DQ != {})
+        MQ = DQ.pop; ct = {};
+        while (MQ != {})
+            N = MQ.pop; ct += N
+            for (N_c : N)
+                if (SAH(N, N_c) > p)
+                    if (DFS)
+                        MQ.push_front(N_c)
+                    else // BFS
+                        MQ.push_back(N_c)
+        TRBVH += {ct}
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Agglomerative Treelet Restructuring}
+    \begin{block}{Потребность}
+        Ускорить традиционные способы перестановки трилетов для использования в динамических сценах
+    \end{block}
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Плюсы и минусы}
+    \framesubtitle{Agglomerative Treelet Restructuring}
+    \textbf{Достоинства}:
+    \begin{itemize}
+        \item
+            30\% быстрее построение TRBVH, по сравнению с базовым методом
+        \item
+            Изменяя размер деревцев можно регулировать соотношение качество/скорость
+    \end{itemize}
+    \textbf{Недостатки}:
+    \begin{itemize}
+        \item
+            Немного дольше строить
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{title}
+    \framesubtitle{subtitle}
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{title}
+    \framesubtitle{subtitle}
+
+    \begin{figure}
+        \includegraphics[keepaspectratio, width=0.2\textwidth]{res/agglo_clustering.png}
+    \end{figure}
+
+    \begin{figure}
+        \includegraphics[scale=0.2]{res/original_treelet.png}
+    \end{figure}
+
+    \begin{figure}
+        \includegraphics[scale=0.2]{res/new_treelet.png}
+    \end{figure}
+
 \end{frame}
 
 \begin{frame}[t]
